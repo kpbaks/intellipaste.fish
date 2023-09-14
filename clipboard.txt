@@ -1,0 +1,5 @@
+$ cmake --version
+$ cmake -S . -B build
+$ cmake --build build
+
+gh repo clone ntk148v/habamax.nvim
