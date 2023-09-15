@@ -26,8 +26,9 @@ function __smart-ctrl-v.fish::filter::command-indicating-leading-dollar
         # that the command can be executed.
         # This is useful when pasting a command from guides that use
         # a $ to indicate that the command should be run in the terminal.
-        set --local line_without_dollar_prefix (string replace --regex "^\s*\\\$\s+" "" -- $line)
-        printf "%s\n" $line_without_dollar_prefix
+        string replace --regex "^\s*\\\$\s+" "" -- $line
+        # set --local line_without_dollar_prefix (string replace --regex "^\s*\\\$\s+" "" -- $line)
+        # printf "%s\n" $line_without_dollar_prefix
     end
 end
 
@@ -68,10 +69,10 @@ function __smart-ctrl-v.fish::filter::common-leading-whitespace
     set --local minimum_common_leading_whitespace (__smart-ctrl-v.fish::utils::get-common-leading-whitespace-length $lines)
     set minimum_common_leading_whitespace (math "$minimum_common_leading_whitespace + 1") # `string sub --start=<n>` indexes from 1
     for line in $lines
-        set --local line_without_common_leading_whitespace (string sub --start=$minimum_common_leading_whitespace $line)
-        printf "%s\n" $line_without_common_leading_whitespace
+        string sub --start=$minimum_common_leading_whitespace -- $line
     end
 end
+
 
 function __smart-ctrl-v.fish::mutate::escape-dollar-and-questionmark
     set --local lines
@@ -83,14 +84,15 @@ function __smart-ctrl-v.fish::mutate::escape-dollar-and-questionmark
         end
     end
     for line in $lines
-        string escape -- $line
-        # set --local line_escaped (string replace --regex "https?://[^ ]+" "<a href=\"\\0\">\\0</a>" -- $line)
-        # printf "%s\n" $line_escaped
+        # string escape -- $line
+        string replace --regex \
+            "(https?://[^ ]+)" \
+            "'\$1'" \
+            -- $line
     end
 end
 
 function __smart-ctrl-v.fish::mutate::gh-repo-clone
-
     set --local lines
     if isatty stdin
         set lines $argv
