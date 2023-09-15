@@ -12,7 +12,24 @@ function _smart-ctrl-v_uninstall --on-event _smart-ctrl-v_uninstall
     # Erase "private" functions, variables, bindings, and other uninstall logic.
 end
 
-
+function __smart-ctrl-v.fish::filter::dollar
+    set --local lines
+    if isatty stdin
+        set lines $argv
+    else
+        while read line
+            set --append lines $line
+        end
+    end
+    for line in $lines
+        # Remove the leading $ from the clipboard content, so
+        # that the command can be executed.
+        # This is useful when pasting a command from guides that use
+        # a $ to indicate that the command should be run in the terminal.
+        set --local line_without_dollar_prefix (string replace --regex "^\s*\\\$\s+" "" -- $line)
+        printf "%s\n" $line_without_dollar_prefix
+    end
+end
 
 function __smart_paste
     set --local buffer (commandline)
