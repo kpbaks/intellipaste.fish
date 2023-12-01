@@ -1,4 +1,3 @@
-status is-interactive; or return
 
 function _smart-ctrl-v_install --on-event _smart-ctrl-v_install
     # Set universal variables, create bindings, and other initialization logic.
@@ -11,6 +10,8 @@ end
 function _smart-ctrl-v_uninstall --on-event _smart-ctrl-v_uninstall
     # Erase "private" functions, variables, bindings, and other uninstall logic.
 end
+
+status is-interactive; or return
 
 function __smart-ctrl-v.fish::filter::command-indicating-leading-dollar
     set --local lines
@@ -27,8 +28,6 @@ function __smart-ctrl-v.fish::filter::command-indicating-leading-dollar
         # This is useful when pasting a command from guides that use
         # a $ to indicate that the command should be run in the terminal.
         string replace --regex "^\s*\\\$\s+" "" -- $line
-        # set --local line_without_dollar_prefix (string replace --regex "^\s*\\\$\s+" "" -- $line)
-        # printf "%s\n" $line_without_dollar_prefix
     end
 end
 
@@ -73,17 +72,11 @@ function __smart-ctrl-v.fish::filter::common-leading-whitespace
     end
 end
 
-
 function __smart-ctrl-v.fish::mutate::escape-dollar-and-questionmark
-    set --local lines
     if isatty stdin
-        set lines $argv
-    else
-        while read line
-            set --append lines $line
-        end
+        printf "%serror in %s:%s%s stdin cannot be a tty\n" (set_color red) (status filename) (status function) (set_color normal) >&2
     end
-    for line in $lines
+    while read line
         # string escape -- $line
         string replace --regex \
             "(https?://[^ ]+)" \
@@ -93,38 +86,34 @@ function __smart-ctrl-v.fish::mutate::escape-dollar-and-questionmark
 end
 
 function __smart-ctrl-v.fish::mutate::gh-repo-clone
-    set --local lines
     if isatty stdin
-        set lines $argv
-    else
-        while read line
-            set --append lines $line
-        end
+        printf "%serror in %s:%s%s stdin cannot be a tty\n" (set_color red) (status filename) (status function) (set_color normal) >&2
     end
-    for line in $lines
 
-        # TODO: <kpbaks 2023-09-14 21:40:37> handle case where (path basename $PWD) == $repo
+    # if test (commandline | string trim) != ""
+    #     # The commandline is not empty, so we do not want to mutate the clipboard
+    #     printf "%s\n" $lines
+    #     return
+    # end
+    
+    while read line
         if string match --regex --groups-only "^\s*gh repo clone ([^/]+)/(.+)" $line \
                 | read --line owner repo
-            # printf "%s\n" "gh repo clone $owner/$repo && cd $repo && gh repo view --web"
-            printf "%s\n" "gh repo clone $owner/$repo && cd $repo"
+            if test -d $repo
+                echo "cd $repo # github repository `$repo` already exist!"
+            else
+                echo "gh repo clone $owner/$repo && cd $repo"
+            end
         else
-            printf "%s\n" $line
+            printf "%s\n" $line # Do nothing, pipe it forward to next filter
         end
     end
-
 end
 
 function __smart-ctrl-v.fish::mutate::git-clone
-    set --local lines
     if isatty stdin
-        set lines $argv
-    else
-        while read line
-            set --append lines $line
-        end
+        printf "%serror in %s:%s%s stdin cannot be a tty\n" (set_color red) (status filename) (status function) (set_color normal) >&2
     end
-    # set --local buffer (commandline)
 
     if test (commandline | string trim) != ""
         # The commandline is not empty, so we do not want to mutate the clipboard
@@ -132,34 +121,44 @@ function __smart-ctrl-v.fish::mutate::git-clone
         return
     end
 
-    for line in $lines
+    while read line # read from stdin
         # You press the "Clone, open or download" button on github
         if string match --quiet --regex "^'*(https?|git)://.*\.git'*\$" -- $line
             # Parse the directory name from the url
             # example: https://github.com/nushell/nushell.git
-            set --local reponame (string split --max=1 --right / $line \
+            set -l repo (string split --max=1 --right / $line \
 			| string replace --all "'" "" \
 			| string sub --end=-4)[-1]
-            # printf "%s\n" "git clone --recursive $line && cd $reponame && git show"
-            printf "%s\n" "git clone --recursive $line && cd $reponame && git branch"
+
+            if test -d $repo
+                echo "cd $repo # github repository `$repo` already exist!"
+            else
+                echo "git clone --recursive $line && cd $repo && git branch"
+            end
             # You ctrl+l && ctrl+c a git url
-        else if string match --regex --groups-only "^'*https?://git(hub|lab).com/([^/]+)/([^/']+)'*" -- $line | read --line owner reponame
-            # https://github.com/gbprod/yanky.nvim
-            printf "%s\n" "git clone --recursive $line && cd $reponame && git branch"
+            # TODO: handle cases like "https://github.com/kpbaks/scripts" properly
+            
+        else if string match --regex --groups-only "^'*https?://git(hub|lab).com/([^/]+)/([^/']+)'*" -- $line | read --line owner repo
+            if test -d $repo
+                echo "cd $repo # github repository `$repo` already exist!"
+            else
+                echo "git clone --recursive $line && cd $repo && git branch"
+            end
         else
-            printf "%s\n" $line
+            printf "%s\n" $line # Do nothing, pipe it forward to next filter
         end
     end
 end
 
 function __smart-ctrl-v.fish::paste
-    set --local buffer (commandline)
-    commandline --insert (fish_clipboard_paste \
+    commandline --insert (
+        fish_clipboard_paste \
         | __smart-ctrl-v.fish::filter::common-leading-whitespace \
         | __smart-ctrl-v.fish::filter::command-indicating-leading-dollar \
         | __smart-ctrl-v.fish::mutate::escape-dollar-and-questionmark \
         | __smart-ctrl-v.fish::mutate::gh-repo-clone \
-        | __smart-ctrl-v.fish::mutate::git-clone)
+        | __smart-ctrl-v.fish::mutate::git-clone
+    )
     commandline --function repaint
 end
 
