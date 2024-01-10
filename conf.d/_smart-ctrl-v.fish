@@ -1,16 +1,3 @@
-
-function _smart-ctrl-v_install --on-event _smart-ctrl-v_install
-    # Set universal variables, create bindings, and other initialization logic.
-end
-
-function _smart-ctrl-v_update --on-event _smart-ctrl-v_update
-    # Migrate resources, print warnings, and other update logic.
-end
-
-function _smart-ctrl-v_uninstall --on-event _smart-ctrl-v_uninstall
-    # Erase "private" functions, variables, bindings, and other uninstall logic.
-end
-
 status is-interactive; or return
 
 function __smart-ctrl-v.fish::filter::command-indicating-leading-dollar
@@ -95,7 +82,7 @@ function __smart-ctrl-v.fish::mutate::gh-repo-clone
     #     printf "%s\n" $lines
     #     return
     # end
-    
+
     while read line
         if string match --regex --groups-only "^\s*gh repo clone ([^/]+)/(.+)" $line \
                 | read --line owner repo
@@ -133,16 +120,16 @@ function __smart-ctrl-v.fish::mutate::git-clone
             if test -d $repo
                 echo "cd $repo # github repository `$repo` already exist!"
             else
-                echo "git clone --recursive $line && cd $repo && git branch"
+                echo "git clone --recurse-submodules $line && cd $repo && git branch"
             end
             # You ctrl+l && ctrl+c a git url
             # TODO: handle cases like "https://github.com/kpbaks/scripts" properly
-            
+
         else if string match --regex --groups-only "^'*https?://git(hub|lab).com/([^/]+)/([^/']+)'*" -- $line | read --line owner repo
             if test -d $repo
                 echo "cd $repo # github repository `$repo` already exist!"
             else
-                echo "git clone --recursive $line && cd $repo && git branch"
+                echo "git clone --recurse-submodules $line && cd $repo && git branch"
             end
         else
             printf "%s\n" $line # Do nothing, pipe it forward to next filter
