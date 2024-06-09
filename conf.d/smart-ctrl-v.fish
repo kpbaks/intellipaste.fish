@@ -1,6 +1,6 @@
 status is-interactive; or return
 
-function __smart-ctrl-v.fish::filter::command-indicating-leading-dollar
+function __smart-ctrl-v::filter::command-indicating-leading-dollar
     set --local lines
     if isatty stdin
         set lines $argv
@@ -18,7 +18,7 @@ function __smart-ctrl-v.fish::filter::command-indicating-leading-dollar
     end
 end
 
-function __smart-ctrl-v.fish::utils::get-common-leading-whitespace-length
+function __smart-ctrl-v::utils::get-common-leading-whitespace-length
     set --local lines
     if isatty stdin
         set lines $argv
@@ -42,7 +42,7 @@ function __smart-ctrl-v.fish::utils::get-common-leading-whitespace-length
     echo $minimum_common_leading_whitespace
 end
 
-function __smart-ctrl-v.fish::filter::common-leading-whitespace
+function __smart-ctrl-v::filter::common-leading-whitespace
     set --local lines
     if isatty stdin
         set lines $argv
@@ -52,14 +52,15 @@ function __smart-ctrl-v.fish::filter::common-leading-whitespace
         end
     end
 
-    set --local minimum_common_leading_whitespace (__smart-ctrl-v.fish::utils::get-common-leading-whitespace-length $lines)
+    # TODO: shorten var names
+    set -l minimum_common_leading_whitespace (__smart-ctrl-v::utils::get-common-leading-whitespace-length $lines)
     set minimum_common_leading_whitespace (math "$minimum_common_leading_whitespace + 1") # `string sub --start=<n>` indexes from 1
     for line in $lines
         string sub --start=$minimum_common_leading_whitespace -- $line
     end
 end
 
-function __smart-ctrl-v.fish::mutate::escape-dollar-and-questionmark
+function __smart-ctrl-v::mutate::escape-dollar-and-questionmark
     if isatty stdin
         printf "%serror in %s:%s%s stdin cannot be a tty\n" (set_color red) (status filename) (status function) (set_color normal) >&2
     end
@@ -72,7 +73,7 @@ function __smart-ctrl-v.fish::mutate::escape-dollar-and-questionmark
     end
 end
 
-function __smart-ctrl-v.fish::mutate::gh-repo-clone
+function __smart-ctrl-v::mutate::gh-repo-clone
     if isatty stdin
         printf "%serror in %s:%s%s stdin cannot be a tty\n" (set_color red) (status filename) (status function) (set_color normal) >&2
     end
@@ -97,7 +98,24 @@ function __smart-ctrl-v.fish::mutate::gh-repo-clone
     end
 end
 
-function __smart-ctrl-v.fish::mutate::git-clone
+function __smart-ctrl-v::mutate::github-download-file
+    # https://github.com/Pipshag/dotfiles_nord/blob/master/.config/waybar/config
+    # https://raw.githubusercontent.com/Pipshag/dotfiles_nord/master/.config/waybar/config
+
+    # TODO: maybe check if a file with the same name exists and ask before overwriting
+    while read line
+        if string match --regex --groups-only "^'https://github.com/([^/]+)/([^/]+)/blob/([^/]+)/(.+)'" -- $line | read --line owner repo branch file
+            # printf "wget -O %s https://raw.githubusercontent.com/%s/%s/%s/%s\n" $file $owner $repo $branch $file
+            printf "wget --no-verbose https://raw.githubusercontent.com/%s/%s/%s/%s\n" $owner $repo $branch $file
+        else if string match --regex --groups-only "^'https://raw.githubusercontent.com/([^/]+)/([^/]+)/([^/]+)/(.+)'" -- $line | read --line owner repo branch file
+            printf "wget --no-verbose https://raw.githubusercontent.com/%s/%s/%s/%s\n" $owner $repo $branch $file
+        else
+            printf "%s\n" $line # Do nothing, pipe it forward to next filter
+        end
+    end
+end
+
+function __smart-ctrl-v::mutate::git-clone
     if isatty stdin
         printf "%serror in %s:%s%s stdin cannot be a tty\n" (set_color red) (status filename) (status function) (set_color normal) >&2
     end
@@ -137,16 +155,18 @@ function __smart-ctrl-v.fish::mutate::git-clone
     end
 end
 
-function __smart-ctrl-v.fish::paste
+function smart-ctrl-v::paste
     commandline --insert (
         fish_clipboard_paste \
-        | __smart-ctrl-v.fish::filter::common-leading-whitespace \
-        | __smart-ctrl-v.fish::filter::command-indicating-leading-dollar \
-        | __smart-ctrl-v.fish::mutate::escape-dollar-and-questionmark \
-        | __smart-ctrl-v.fish::mutate::gh-repo-clone \
-        | __smart-ctrl-v.fish::mutate::git-clone
+        | __smart-ctrl-v::filter::common-leading-whitespace \
+        | __smart-ctrl-v::filter::command-indicating-leading-dollar \
+        | __smart-ctrl-v::mutate::escape-dollar-and-questionmark \
+        | __smart-ctrl-v::mutate::gh-repo-clone \
+        | __smart-ctrl-v::mutate::github-download-file \
+        | __smart-ctrl-v::mutate::git-clone
     )
     commandline --function repaint
 end
 
-bind \cv __smart-ctrl-v.fish::paste
+# create keybinding
+bind \cv smart-ctrl-v::paste
