@@ -1,7 +1,12 @@
-# smart-ctrl-v.fish
+# intellipaste.fish
 
 ## Installation
 ```fish
-fisher install kpbaks/smart-ctrl-v.fish
+fisher install kpbaks/intellipaste.fish
 ```
+
+## Examples
+
+## Configuration
+
 
