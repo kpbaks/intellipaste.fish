@@ -8,6 +8,7 @@ status is-interactive; or return
 # - sourceberg
 
 
+# TODO: use log.fish
 set -l log_prefix (printf '[%sintellipaste.fish%s]' (set_color blue) (set_color normal))
 
 # TODO: come up with other useful substitutions
@@ -257,7 +258,43 @@ function __intellipaste::filter::quoted-string
     end
 end
 
+# TODO: document this feature in the readme
+function __intellipaste::handler::image-png
+    # TODO: what if on x11?
+    # TODO: refactor do not check for mime type here
+    command -q wl-paste; or return 1
+    set -l types (command wl-paste -l)
+    test $types[1] = image/png; or return 1
+
+    # TODO: support more image view tools
+    if command -q kitten; and set -q KITTY_PID
+        command wl-paste | kitten icat
+    else if command -q timg
+        command wl-paste | command timg -
+    end
+
+    commandline --function repaint
+    return 0
+end
+
 function __intellipaste::paste -d 'TODO:'
+    set -l buf (commandline)
+    set -l cursor (commandline --cursor)
+
+    __intellipaste::handler::image-png; and return 0
+
+    # TODO: make dependent on the commandline content and cursor position
+    # if command -q wl-paste; and command -q timg
+    #     set -l types (command wl-paste -l)
+    #     switch $types[1]
+    #         case image/png
+    #             # command wl-paste | command timg --center -
+    #             command wl-paste | command timg -
+    #             commandline --function repaint
+    #             return
+    #     end
+    # end
+
     set -l filters
     for f in $intellipaste_filters
         if functions -q __intellipaste::filter::$f
@@ -271,12 +308,12 @@ function __intellipaste::paste -d 'TODO:'
         end
     end
     set -l pipeline (string join ' | ' -- fish_clipboard_paste $filters)
+    # FIXME: does not work
     echo $pipeline
     # set -l result (eval $pipeline)
     # if test $status -eq 0
     #     commandline --insert $result
     # end
-
 
     # commandline --function repaint
     commandline --function force-repaint

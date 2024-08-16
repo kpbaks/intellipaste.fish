@@ -48,6 +48,8 @@ git clone https://github.com/kpbaks/intellipaste.fish
 
 ### `quoted-string`
 
+### `strip-comments`
+
 
 ## Configuration
 
